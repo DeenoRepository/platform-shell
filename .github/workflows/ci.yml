@@ -1,4 +1,4 @@
-name: Module CI
+name: Shell CI
 
 on:
   push:
@@ -22,10 +22,6 @@ jobs:
             echo "Error: AI artifacts are strictly prohibited in product repositories."
             exit 1
           fi
-          echo "AI artifacts check passed."
-      - name: Install dependencies
-        run: npm install || echo "Dependency resolution check"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run TDD unit tests
-        run: npm test || echo "Test execution completed"
+          echo "Cleanliness check passed."
+      - name: Run Tests
+        run: npx vitest run
