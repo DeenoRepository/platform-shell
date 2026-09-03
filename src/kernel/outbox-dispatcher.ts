@@ -15,7 +15,7 @@ export interface IOutboxStore {
 }
 
 export class OutboxDispatcher {
-  private timer: NodeJS.Timeout | null = null;
+  private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly store: IOutboxStore,

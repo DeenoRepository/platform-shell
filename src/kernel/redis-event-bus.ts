@@ -1,4 +1,11 @@
-import { IEventBus, ISubscription, EventHandler, DomainEventEnvelope, IRedisStreamsOptions } from '@deenorepository/contracts';
+import { IEventBus, ISubscription, EventHandler, DomainEventEnvelope } from '@deenorepository/contracts';
+
+export interface IRedisStreamsOptions {
+  readonly streamKey: string;
+  readonly consumerGroup: string;
+  readonly consumerName: string;
+  readonly maxLen?: number;
+}
 
 export class RedisStreamsEventBus implements IEventBus {
   private inMemoryFallback: Map<string, Set<EventHandler>> = new Map();
@@ -31,7 +38,6 @@ export class RedisStreamsEventBus implements IEventBus {
         JSON.stringify(envelope)
       );
     } else {
-      // Local fallback for in-process dispatch
       const handlers = this.inMemoryFallback.get(type) || new Set();
       const wildcards = this.inMemoryFallback.get('*') || new Set();
       for (const h of [...handlers, ...wildcards]) {
