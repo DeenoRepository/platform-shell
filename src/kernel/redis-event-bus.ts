@@ -41,9 +41,11 @@ export class RedisStreamsEventBus implements IEventBus {
       const handlers = this.inMemoryFallback.get(type) || new Set();
       const wildcards = this.inMemoryFallback.get('*') || new Set();
       for (const h of [...handlers, ...wildcards]) {
-        await Promise.resolve(h(envelope)).catch(err => {
+        try {
+          await Promise.resolve(h(envelope));
+        } catch (err) {
           console.error(`[RedisEventBus Fallback] Error in subscriber for ${type}:`, err);
-        });
+        }
       }
     }
   }
