@@ -1,0 +1,231 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Button,
+  CircularProgress,
+} from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import EngineeringOutlinedIcon from '@mui/icons-material/EngineeringOutlined';
+import ContactSupportOutlinedIcon from '@mui/icons-material/ContactSupportOutlined';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+
+export interface ServiceHealthInfo {
+  status: 'healthy' | 'unreachable' | 'degraded' | 'disabled';
+  name: string;
+  latencyMs?: number;
+}
+
+export interface SystemHealthReport {
+  isReady: boolean;
+  timestamp: string;
+  services: {
+    database: ServiceHealthInfo;
+    storage: ServiceHealthInfo;
+    ldap: ServiceHealthInfo;
+  };
+}
+
+export function useSystemHealth(autoRefreshIntervalMs = 3000) {
+  const [health, setHealth] = useState<SystemHealthReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isReady, setIsReady] = useState<boolean>(true);
+
+  const checkHealth = useCallback(async () => {
+    setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    try {
+      const res = await fetch('/api/system/health', {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache' },
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      if (data.success) {
+        const payload = data.data || data;
+        setHealth(data.data || null);
+        setIsReady(payload.isReady !== undefined ? payload.isReady : true);
+      } else {
+        setHealth(null);
+        setIsReady(false);
+      }
+    } catch {
+      setHealth(null);
+      setIsReady(false);
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+
+    if (autoRefreshIntervalMs > 0) {
+      const interval = setInterval(checkHealth, autoRefreshIntervalMs);
+      return () => clearInterval(interval);
+    }
+  }, [checkHealth, autoRefreshIntervalMs]);
+
+  return { health, loading, isReady, checkHealth };
+}
+
+export interface ServiceUnavailableCardProps {
+  health?: SystemHealthReport | null;
+  loading?: boolean;
+  onRefresh?: () => void;
+  className?: string;
+}
+
+export function ServiceUnavailableCard({
+  loading = false,
+  onRefresh,
+  className,
+}: ServiceUnavailableCardProps) {
+  return (
+    <Box
+      sx={{
+        textAlign: 'center',
+        pt: 1,
+        pb: 0.5,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+      className={className}
+    >
+      {/* Animated Status Icon Header */}
+      <Box
+        sx={{
+          position: 'relative',
+          mb: 2.5,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* Outer Glow Halo */}
+        <Box
+          sx={{
+            position: 'absolute',
+            width: 76,
+            height: 76,
+            borderRadius: '50%',
+            backgroundColor: 'error.light',
+            opacity: 0.4,
+            animation: 'pulseGlow 3s infinite ease-in-out',
+            '@keyframes pulseGlow': {
+              '0%': { transform: 'scale(0.95)', opacity: 0.3 },
+              '50%': { transform: 'scale(1.15)', opacity: 0.6 },
+              '100%': { transform: 'scale(0.95)', opacity: 0.3 },
+            },
+          }}
+        />
+
+        {/* Central Icon Container */}
+        <Box
+          sx={{
+            width: 58,
+            height: 58,
+            borderRadius: '16px',
+            bgcolor: 'error.light',
+            border: '1px solid',
+            borderColor: 'error.light',
+            color: 'error.main',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 8px 20px -4px rgba(220, 38, 38, 0.15)',
+            zIndex: 1,
+          }}
+        >
+          <EngineeringOutlinedIcon sx={{ fontSize: 32 }} />
+        </Box>
+      </Box>
+
+      {/* Status Badge */}
+      <StatusBadge status="MAINTENANCE" label="Технические работы" size="small" />
+
+      {/* Subtitle / Description */}
+      <Typography
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          fontSize: '0.8125rem',
+          lineHeight: 1.55,
+          mb: 2.5,
+          maxWidth: 330,
+          fontWeight: 400,
+        }}
+      >
+        Авторизация временно приостановлена в связи с проведением регламентных работ или отсутствием связи с сервером.
+      </Typography>
+
+      {/* Support Info Box */}
+      <Paper
+        elevation={0}
+        sx={{
+          width: '100%',
+          p: 1.5,
+          mb: 2.75,
+          borderRadius: 2,
+          backgroundColor: 'background.default',
+          border: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 1.25,
+          textAlign: 'left',
+        }}
+      >
+        <ContactSupportOutlinedIcon
+          sx={{ fontSize: 18, color: 'primary.main', mt: 0.15, flexShrink: 0 }}
+        />
+        <Typography
+          variant="caption"
+          sx={{
+            color: 'text.secondary',
+            fontSize: '0.75rem',
+            lineHeight: 1.45,
+            fontWeight: 500,
+          }}
+        >
+          При возникновении срочных вопросов обратитесь в службу технической поддержки (ИТ-отдел).
+        </Typography>
+      </Paper>
+
+      {/* Primary Action Button */}
+      <Button
+        fullWidth
+        variant="contained"
+        color="primary"
+        size="large"
+        onClick={onRefresh}
+        disabled={loading}
+        startIcon={
+          loading ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <RefreshIcon sx={{ fontSize: 18 }} />
+          )
+        }
+        sx={{
+          py: 1.2,
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          borderRadius: 2,
+          textTransform: 'none',
+        }}
+      >
+        {loading ? 'Проверка подключения...' : 'Проверить доступность сервиса'}
+      </Button>
+    </Box>
+  );
+}
+
+export default ServiceUnavailableCard;
