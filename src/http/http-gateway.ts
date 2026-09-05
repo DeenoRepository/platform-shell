@@ -2,6 +2,7 @@ import { IEventBus } from '@deenorepository/contracts';
 import { RbacGuard, UserSecurityContext } from '../security/rbac-guard.js';
 import { LifecycleManager, NavigationItem } from '../kernel/lifecycle-manager.js';
 import { CrossModuleEventBridge } from '../kernel/cross-module-event-bridge.js';
+import { renderPlatformShellUi } from './ui-template.js';
 
 export interface HttpRequest {
   method: string;
@@ -54,6 +55,18 @@ export class HttpGateway {
     const url = new URL(req.url, 'http://localhost');
     const path = url.pathname;
     const method = req.method.toUpperCase();
+
+    // Root & Frontend Shell UI Application
+    if (method === 'GET' && (path === '/' || path === '/eps' || path === '/wms' || path === '/mro' || path === '/prm')) {
+      return {
+        statusCode: 200,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'x-platform-runtime': 'fastify-shell-host'
+        },
+        body: renderPlatformShellUi()
+      };
+    }
 
     // Health liveness probe
     if (method === 'GET' && path === '/health') {
